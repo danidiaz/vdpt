@@ -6,7 +6,7 @@ DataPort server.
 
 Start the server with:
 
-    vdpt server
+    vdpt
 
 Available endpoints:
 

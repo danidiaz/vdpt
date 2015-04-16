@@ -42,6 +42,12 @@ makePages = newIORef (1, I.empty)
 addPage :: a -> (Int, I.IntMap a) -> ((Int, I.IntMap a), Int)
 addPage t (i, m) = ((succ i, I.insert i t m), i)
 
+deletePage :: Int -> (Int, I.IntMap a) -> ((Int, I.IntMap a), ())
+deletePage i' (i, m) = ((i, I.delete i' m), ())
+
+deleteAllPages :: (Int, I.IntMap a) -> ((Int, I.IntMap a), ())
+deleteAllPages (i, _) = ((i, I.empty), ())
+
 textData :: ActionM LT.Text
 textData = LT.decodeUtf8 <$> body
 
@@ -185,6 +191,9 @@ server port = withSocketsDo $ do
                 HTMLFormat -> do 
                     status status303 -- perform redirection 
                 _ -> liftIO $ throwIO $ userError "unsupported Accept value"
+        delete "/traces" $ do
+            liftIO $ atomicModifyIORef' pages deleteAllPages
+            status ok200
         get "/traces/:traceId" $ do
             traceId <- param "traceId"
             (_,m) <- liftIO $ readIORef pages 
@@ -209,3 +218,7 @@ server port = withSocketsDo $ do
                                             a_ [href_ jsonViewURL] "JSON View" 
                                             ")"
                         _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
+        delete "/traces/:traceId" $ do
+            traceId <- param "traceId"
+            liftIO $ atomicModifyIORef' pages (deletePage traceId)
+            status ok200
