@@ -89,19 +89,20 @@ responseFormat defaultFormat = do
         Nothing -> do 
             macceptHeader <- header "Accept" 
             return $ case macceptHeader of
-                Just ag -> parseAcceptHeaders ag
+                Just ag -> parseAcceptHeaders defaultFormat ag
                 Nothing -> defaultFormat
   where
     -- possible usafety here!
-    parseAcceptHeaders 
+    parseAcceptHeaders d
         = head 
-        . map (parseFormat . LT.strip . head . LT.splitOn ";") 
+        . map (parseFormat d . LT.strip . head . LT.splitOn ";") 
         . LT.splitOn "," 
-    parseFormat fmt = case fmt of
+    parseFormat d fmt = case fmt of
         "text/html" -> HTMLFormat
         "application/json" -> JSONFormat
         "text/plain" -> PlainTextFormat 
         "image/svg+xml" -> SVGFormat
+        "*/*" -> d
         _ -> OtherFormat
 
 uploadForm :: Html () 
