@@ -136,6 +136,9 @@ server :: Int -> IO ()
 server port = withSocketsDo $ do
     pages <- makePages 
     scotty port $ do
+        get "/" $ do
+            addHeader "Location" "/traces"
+            status status303 -- perform redirection 
         get "/version" $ do
             rformat <- responseFormat JSONFormat
             case rformat of
