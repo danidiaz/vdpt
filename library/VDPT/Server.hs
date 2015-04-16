@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module VDPT.Server
     (
@@ -10,8 +11,10 @@ import Data.Monoid
 import Data.IORef
 import qualified Data.Aeson as J
 import Data.Aeson.Encode.Pretty
+import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as I
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
 import qualified Data.Text.Lazy.Builder as LT
@@ -27,7 +30,10 @@ import Lucid
 import VDPT
 import VDPT.Parser
 
-version :: String
+jsonViewURL :: T.Text
+jsonViewURL = "https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnpoihckbnefhakgolnmc?hl=en"
+
+version :: LT.Text
 version = "0.1.0.0"
 
 makePages :: IO (IORef (Int, I.IntMap a))
@@ -136,9 +142,6 @@ server :: Int -> IO ()
 server port = withSocketsDo $ do
     pages <- makePages 
     scotty port $ do
-        get "/" $ do
-            addHeader "Location" "/traces"
-            status status303 -- perform redirection 
         get "/version" $ do
             rformat <- responseFormat JSONFormat
             case rformat of
@@ -147,17 +150,26 @@ server port = withSocketsDo $ do
                     html_ $ do
                         head_ (title_ "Version")
                         body_ $ toHtml version
-                PlainTextFormat -> text $ LT.pack version
+                PlainTextFormat -> text $ version
                 _ -> liftIO $ throwIO $ userError "unsupported Accept value"
+        get "/" $ do
+            addHeader "Location" "/traces"
+            status status303 -- perform redirection 
         get "/traces" $ do
             rformat <- responseFormat JSONFormat
+            (_, I.keys -> pm) <- liftIO $ readIORef pages
+            let relurl i = LT.toLazyText $ "/traces/" <> LT.decimal i
             html $ renderText $
                 html_ $ do
                     head_ $ title_ "List of traces"
-                    body_ $ 
+                    body_ $ do
                         div_ $ do 
                             uploadForm
                             textboxForm
+                        div_ $ do
+                            T.forM pm $ \i -> do
+                                a_ [href_ (LT.toStrict (relurl i))] (toHtml . show $ i)
+                                " "
         post "/traces" $ do
             traceText <- traceUploadBody
             let result = Trace . numberTraceTree <$> parseIntoEither traceTreeParser traceText
@@ -194,6 +206,6 @@ server port = withSocketsDo $ do
                                             " "
                                             a_ [href_ (LT.toStrict $ relurl <> "?$format=json")] "json"
                                             " (use "
-                                            a_ [href_ "https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnpoihckbnefhakgolnmc?hl=en"] "JSON View" 
+                                            a_ [href_ jsonViewURL] "JSON View" 
                                             ")"
                         _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
