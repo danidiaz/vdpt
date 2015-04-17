@@ -15,6 +15,7 @@ import Data.Aeson.Encode.Pretty
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as I
+import qualified Data.IntMap.Lazy as IL
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
@@ -227,3 +228,30 @@ server port = withSocketsDo $ do
             traceId <- param "traceId"
             liftIO $ atomicModifyIORef' pages (deletePage traceId)
             status ok200
+        get "/traces/:traceId/nodes/:nodeId" $ do
+            traceId <- param "traceId"
+            nodeId <- param "nodeId"
+            (_,m) <- liftIO $ readIORef pages 
+            case I.lookup traceId m of
+                Nothing -> liftIO . throwIO $ userError "trace does not exist"
+                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeMap t) of
+                    Nothing ->  liftIO . throwIO $ userError "node does not exist"
+                    Just t' -> do
+                        respf <- responseFormat JSONFormat
+                        case respf of 
+                            JSONFormat -> jsonPretty $ t'    
+                            HTMLFormat -> html $ do  
+                                let relurl = LT.toLazyText $ "/traces/" <> LT.decimal traceId
+                                let relurl2 = LT.toLazyText $ "/traces/" <> LT.decimal traceId <> "/nodes/" <> LT.decimal nodeId
+                                renderText $
+                                    html_ $ do
+                                        head_ (title_ "Trace node")
+                                        body_ $ do
+                                            div_ $ do
+                                                a_ [href_ (LT.toStrict $ relurl2 <> "?$format=json")] "json"
+                                                " (use "
+                                                a_ [href_ jsonViewURL] "JSON View" 
+                                                ")"
+                                            div_ $ do
+                                                a_ [href_ (LT.toStrict $ relurl)] "whole trace"
+                            _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
