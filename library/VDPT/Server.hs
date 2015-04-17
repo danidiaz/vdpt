@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE BangPatterns #-}
 
 module VDPT.Server
     (
@@ -43,7 +44,11 @@ addPage :: a -> (Int, I.IntMap a) -> ((Int, I.IntMap a), Int)
 addPage t (i, m) = ((succ i, I.insert i t m), i)
 
 deletePage :: Int -> (Int, I.IntMap a) -> ((Int, I.IntMap a), ())
-deletePage i' (i, m) = ((i, I.delete i' m), ())
+deletePage i' (i, m) = 
+    let 
+        deleted = I.delete i' m 
+    in 
+    (deleted `seq` (i, deleted), ())
 
 deleteAllPages :: (Int, I.IntMap a) -> ((Int, I.IntMap a), ())
 deleteAllPages (i, _) = ((i, I.empty), ())

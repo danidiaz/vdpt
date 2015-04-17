@@ -16,9 +16,9 @@ type NodeId = Int
 
 data Attributes = Attributes 
     {
-        _nodeId :: NodeId
-    ,   _nodeType :: T.Text   
-    ,   _dynamic :: Map T.Text JSON.Value
+        _nodeId :: !NodeId
+    ,   _nodeType :: !T.Text   
+    ,   _dynamic :: !(Map T.Text JSON.Value)
     } deriving (Show, Eq)
 
 $(makeLenses ''Attributes)
