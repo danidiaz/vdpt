@@ -56,7 +56,7 @@ attributeValue =
    <|>
    (JSON.toJSON <$> (char '[' *> sepBy' listElement (char ',') <* char ']' <* skipWhile isHorizontalSpace))
    <|>
-   (JSON.String . T.strip <$> takeWhile1 (not . isEndOfLine))
+   (JSON.String . T.strip <$> AL.takeWhile (not . isEndOfLine))
 
 listElement :: Parser JSON.Value
 listElement = JSON.String . T.strip <$> (topFragment1 <|> topFragment2)
