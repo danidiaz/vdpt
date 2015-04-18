@@ -202,7 +202,7 @@ server port = withSocketsDo $ do
             case respf of
                 JSONFormat -> do
                     status created201
-                    json $ M.singleton ("url"::LT.Text) relurl  
+                    json $ M.singleton ("url"::LT.Text) (J.toJSON relurl) <> M.singleton "id" (J.toJSON i)
                 HTMLFormat -> do 
                     status status303 -- perform redirection 
                 _ -> liftIO $ throwIO $ userError "unsupported Accept value"
