@@ -24,6 +24,7 @@ import qualified Data.Text.Lazy.Builder.Int as LT
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Exception
+import Control.Lens
 import Network
 import Web.Scotty
 import Network.Wai.Parse
@@ -261,28 +262,34 @@ server port = withSocketsDo $ do
                                                 a_ [href_ jsonViewURL] "JSON View" 
                                                 ")"
                                             div_ $ do
-                                                a_ [href_ (LT.toStrict $ relurl2 <> "/parents")] "list of parents"
+                                                a_ [href_ (LT.toStrict $ relurl2 <> "/ancestors")] "ancestors"
                                             div_ $ do
                                                 a_ [href_ (LT.toStrict $ relurl)] "back to whole trace"
                             _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
-        get "/traces/:traceId/nodes/:nodeId/parents" $ do
+        get "/traces/:traceId/nodes/:nodeId/ancestors" $ do
             traceId <- param "traceId"
             nodeId <- param "nodeId"
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
-                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeParentIdsMap t) of
+                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeParentsMap t) of
                     Nothing ->  liftIO . throwIO $ userError "node does not exist"
                     Just t' -> do
-                        let ids = map (nodeUrl traceId) t'
+                        -- let ids = map (nodeUrl traceId) t'
+                        let parents = over (mapped._2) (nodeUrl traceId . traceRootId) t'
+                            parentswtype = over (mapped._2) ((,,) <$> traceRootId <*> nodeUrl traceId . traceRootId <*> traceRootType) t'
                         respf <- responseFormat JSONFormat
                         case respf of 
-                            JSONFormat -> jsonPretty $ map (nodeUrl traceId) t'
+                            JSONFormat -> jsonPretty $ parents
                             HTMLFormat -> html $ renderText $ do
-                                head_ (title_ "Trace node parents")
+                                head_ (title_ "Trace node ancestors")
                                 body_ $ do
                                    div_ $ do 
-                                       T.forM t' $ \i -> 
+                                       T.forM parentswtype $ \(ind, (pId, pUrl,pType)) -> 
                                            div_ $ do
-                                                a_ [href_ (LT.toStrict (nodeUrl traceId i))] (toHtml . show $ i)
+                                                a_ [href_ (LT.toStrict pUrl)] (toHtml . show $ pId)
+                                                " #" 
+                                                (toHtml . show $ ind)   
+                                                " "
+                                                (toHtml pType)   
                             _ -> liftIO $ throwIO $ userError "unsupported Accept value" 

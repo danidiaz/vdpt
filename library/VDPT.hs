@@ -4,7 +4,6 @@ module VDPT
     ,   numberTraceTree 
     ,   nodeMap
     ,   nodeParentsMap 
-    ,   nodeParentIdsMap 
     ) where
 
 import Data.Tree
@@ -25,10 +24,11 @@ nodeMap
     . duplicate
     . getTrace
 
-nodeParentsMap :: Trace -> IL.IntMap [Trace]
+nodeParentsMap :: Trace -> IL.IntMap [(Int,Trace)]
 nodeParentsMap = para go . getTrace
   where
-    go n submaps = IL.insert (_nodeId . rootLabel $ n) [] $ fmap ((:) (Trace n)) (mconcat submaps)
-    
-nodeParentIdsMap :: Trace -> IL.IntMap [NodeId]
-nodeParentIdsMap = fmap (fmap (_nodeId . rootLabel . getTrace)) . nodeParentsMap
+    go n submaps
+        = IL.insert (_nodeId . rootLabel $ n) [] 
+        $ mconcat
+        $ fmap (\(i, ml) -> fmap ((:) (i, Trace n)) ml) 
+        $ zip [0..] submaps
