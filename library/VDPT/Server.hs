@@ -38,6 +38,8 @@ jsonViewURL = "https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnp
 version :: LT.Text
 version = "0.1.0.0"
 
+type TraceId = Int
+
 makePages :: IO (IORef (Int, I.IntMap a))
 makePages = newIORef (1, I.empty)
 
@@ -150,6 +152,12 @@ jsonPretty j = do
     setHeader "Content-Type" "application/json; charset=utf-8" 
     raw $ encodePretty' (defConfig { confCompare = traceKeyOrder }) j  
 
+traceUrl :: TraceId -> LT.Text
+traceUrl traceId = LT.toLazyText $ "/traces/" <> LT.decimal traceId
+
+nodeUrl :: TraceId -> NodeId -> LT.Text  
+nodeUrl traceId nodeId = LT.toLazyText $ "/traces/" <> LT.decimal traceId <> "/nodes/" <> LT.decimal nodeId
+
 server :: Int -> IO ()
 server port = withSocketsDo $ do
     pages <- makePages 
@@ -253,5 +261,28 @@ server port = withSocketsDo $ do
                                                 a_ [href_ jsonViewURL] "JSON View" 
                                                 ")"
                                             div_ $ do
-                                                a_ [href_ (LT.toStrict $ relurl)] "whole trace"
+                                                a_ [href_ (LT.toStrict $ relurl2 <> "/parents")] "list of parents"
+                                            div_ $ do
+                                                a_ [href_ (LT.toStrict $ relurl)] "back to whole trace"
+                            _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
+        get "/traces/:traceId/nodes/:nodeId/parents" $ do
+            traceId <- param "traceId"
+            nodeId <- param "nodeId"
+            (_,m) <- liftIO $ readIORef pages 
+            case I.lookup traceId m of
+                Nothing -> liftIO . throwIO $ userError "trace does not exist"
+                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeParentIdsMap t) of
+                    Nothing ->  liftIO . throwIO $ userError "node does not exist"
+                    Just t' -> do
+                        let ids = map (nodeUrl traceId) t'
+                        respf <- responseFormat JSONFormat
+                        case respf of 
+                            JSONFormat -> jsonPretty $ map (nodeUrl traceId) t'
+                            HTMLFormat -> html $ renderText $ do
+                                head_ (title_ "Trace node parents")
+                                body_ $ do
+                                   div_ $ do 
+                                       T.forM t' $ \i -> 
+                                           div_ $ do
+                                                a_ [href_ (LT.toStrict (nodeUrl traceId i))] (toHtml . show $ i)
                             _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
