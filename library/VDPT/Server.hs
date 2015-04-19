@@ -301,9 +301,16 @@ server port = withSocketsDo $ do
                 head_ (title_ "Available analyses")
                 body_ $ do
                    div_ $ a_ [href_ $ LT.toStrict $ url <> "/analyses/nodecountsbytype"] "node counts by type"
+                   div_ $ a_ [href_ $ LT.toStrict $ url <> "/analyses/directancestorsbytype"] "direct ancestors by type"
         get "/traces/:traceId/analyses/nodecountsbytype" $ do
             traceId <- param "traceId"
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
                 Just (traceTypeCounts . _parsedTrace -> t) -> jsonPretty t
+        get "/traces/:traceId/analyses/directancestorsbytype" $ do
+            traceId <- param "traceId"
+            (_,m) <- liftIO $ readIORef pages 
+            case I.lookup traceId m of
+                Nothing -> liftIO . throwIO $ userError "trace does not exist"
+                Just (directAncestorsByType . _parsedTrace -> t) -> jsonPretty t
