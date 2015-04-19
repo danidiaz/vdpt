@@ -4,6 +4,7 @@ module VDPT
     ,   numberNodeTree 
     ,   nodeMap
     ,   nodeParentsMap 
+    ,   nodeTreeDiff
     ,   nodeTypeCounts 
     ,   directAncestorsByType 
     ) where
@@ -16,6 +17,8 @@ import qualified Data.Traversable as TR
 import qualified Data.IntMap.Lazy as IL
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
+import Control.Applicative
+import Control.Monad
 import Control.Comonad
 import Control.Lens
 import VDPT.Types
@@ -37,6 +40,26 @@ nodeParentsMap t = para go t
         $ fmap (\(i, ml) -> fmap ((:) (i,n)) ml) 
         $ zip [0..] submaps
 
+nodeTreeDiff :: Tree Attributes -> Tree Attributes -> [(NodeId, NodeId, [Difference])]
+nodeTreeDiff t1@(Node r1 c1) t2@(Node r2 c2) =  
+  case childDiff ++ typeDiff ++ attrDiff of
+      ds@(_:_) -> [(_nodeId r1, _nodeId r2, ds)]  
+      [] -> mconcat $ zipWith nodeTreeDiff c1 c1
+  where
+    childDiff = 
+        let (l1,l2) = (length c1, length c2) in
+        guard (l1 /= l2) *> [DifferentNumberOfChildren l1 l2]
+    typeDiff = 
+        let (x1,x2) = (_nodeType r1, _nodeType r2) in 
+        guard (x1 /= x2) *> [DifferentNodeTypes x1 x2]
+    attrDiff = 
+        let (attrs1, attrs2) = (_dynamic r1, _dynamic r2) in
+        flip M.foldMapWithKey attrs1 $ \attrKey attrVal ->  
+            case M.lookup attrKey attrs2 of
+                Nothing -> [AttributeDissapeared attrKey] 
+                Just attrVal2 ->  
+                    guard (attrVal /= attrVal2) *> [AttributeChanged attrKey attrVal attrVal2]
+
 nodeTypeCounts :: Tree Attributes -> M.Map T.Text Int 
 nodeTypeCounts 
     = M.unionsWith (+)
@@ -52,13 +75,3 @@ directAncestorsByType t = para go t
             cs = map (flip M.singleton p . _nodeType . extract) (children x)
         in
         M.unionsWith (<>) cs
-
-diff :: Tree Attributes -> Tree Attributes -> [(NodeId, NodeId, [Difference])]
-diff t1@(Node r1 c1) t2@(Node r2 c2) = undefined 
-  where
-    cDiff = undefined
-
-
-
-
-

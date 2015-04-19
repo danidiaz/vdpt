@@ -295,6 +295,14 @@ server port = withSocketsDo $ do
                                                 " "
                                                 (toHtml pType)   
                             _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
+        get "/traces/:traceId/differences/:traceId2" $ do
+            traceId <- param "traceId"
+            traceId2 <- param "traceId2"
+            (_,m) <- liftIO $ readIORef pages 
+            case (,) <$> I.lookup traceId m <*> I.lookup traceId2 m of
+                Nothing -> liftIO . throwIO $ userError "trace does not exist"
+                Just (getTrace . _parsedTrace -> t1, getTrace . _parsedTrace -> t2) -> do
+                    jsonPretty $ nodeTreeDiff t1 t2 
         get "/traces/:traceId/analyses" $ do
             traceId <- param "traceId"
             let url = traceUrl traceId

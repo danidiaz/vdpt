@@ -58,9 +58,10 @@ data Parsed = Parsed
 $(makeLenses ''Parsed)
 
 data Difference = 
-      DifferentNumberOfChildren
-    | AttibuteDissapeared T.Text
-    | AttibuteChanged T.Text JSON.Value JSON.Value
+      DifferentNumberOfChildren Int Int
+    | DifferentNodeTypes T.Text T.Text
+    | AttributeDissapeared T.Text
+    | AttributeChanged T.Text JSON.Value JSON.Value
     deriving (Show, Eq, Generic) 
 
 instance JSON.ToJSON Difference
