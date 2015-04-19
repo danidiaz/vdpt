@@ -24,6 +24,7 @@ import qualified Data.Text.Lazy.Builder.Int as LT
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Exception
+import Control.Comonad
 import Control.Lens
 import Network
 import Web.Scotty
@@ -193,7 +194,7 @@ server port = withSocketsDo $ do
                                 " "
         post "/traces" $ do
             traceText <- traceUploadBody
-            let result = Trace . numberTraceTree <$> parseIntoEither traceTreeParser traceText
+            let result = Trace . numberNodeTree <$> parseIntoEither traceTreeParser traceText
             trace' <- either (liftIO . throwIO . userError) return result
             i <- liftIO $ atomicModifyIORef' pages (addPage (Parsed traceText trace'))
             let relurl = LT.toLazyText $ "/traces/" <> LT.decimal i
@@ -244,12 +245,12 @@ server port = withSocketsDo $ do
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
-                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeMap t) of
+                Just (getTrace . _parsedTrace -> t) -> case IL.lookup nodeId (nodeMap t) of
                     Nothing ->  liftIO . throwIO $ userError "node does not exist"
                     Just t' -> do
                         respf <- responseFormat JSONFormat
                         case respf of 
-                            JSONFormat -> jsonPretty $ t'    
+                            JSONFormat -> jsonPretty $ Trace t'    
                             HTMLFormat -> html $ do  
                                 let relurl = LT.toLazyText $ "/traces/" <> LT.decimal traceId
                                 let relurl2 = LT.toLazyText $ "/traces/" <> LT.decimal traceId <> "/nodes/" <> LT.decimal nodeId
@@ -273,12 +274,12 @@ server port = withSocketsDo $ do
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
-                Just (_parsedTrace -> t) -> case IL.lookup nodeId (nodeParentsMap t) of
+                Just (getTrace . _parsedTrace -> t) -> case IL.lookup nodeId (nodeParentsMap t) of
                     Nothing ->  liftIO . throwIO $ userError "node does not exist"
                     Just t' -> do
                         -- let ids = map (nodeUrl traceId) t'
-                        let parents = over (mapped._2) (nodeUrl traceId . traceRootId) t'
-                            parentswtype = over (mapped._2) ((,,) <$> traceRootId <*> nodeUrl traceId . traceRootId <*> traceRootType) t'
+                        let parents = over (mapped._2) (nodeUrl traceId . _nodeId . extract) t'
+                            parentswtype = over (mapped._2) ((,,) <$> _nodeId . extract <*> nodeUrl traceId . _nodeId  . extract <*> _nodeType . extract) t'
                         respf <- responseFormat JSONFormat
                         case respf of 
                             JSONFormat -> jsonPretty $ parents
@@ -307,10 +308,10 @@ server port = withSocketsDo $ do
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
-                Just (traceTypeCounts . _parsedTrace -> t) -> jsonPretty t
+                Just (nodeTypeCounts . getTrace . _parsedTrace -> t) -> jsonPretty t
         get "/traces/:traceId/analyses/directancestorsbytype" $ do
             traceId <- param "traceId"
             (_,m) <- liftIO $ readIORef pages 
             case I.lookup traceId m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
-                Just (directAncestorsByType . _parsedTrace -> t) -> jsonPretty t
+                Just (directAncestorsByType . getTrace . _parsedTrace -> t) -> jsonPretty t

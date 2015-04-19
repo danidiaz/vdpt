@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module VDPT.Types where
 
@@ -11,6 +12,7 @@ import qualified Data.Aeson as JSON
 import Data.Aeson.Encode.Pretty
 import Control.Applicative
 import Control.Lens
+import GHC.Generics
 
 type NodeId = Int
 
@@ -26,11 +28,11 @@ $(makeLenses ''Attributes)
 
 newtype Trace = Trace { getTrace :: Tree Attributes } deriving (Show, Eq)
 
-traceRootId :: Trace -> NodeId
-traceRootId = _nodeId . rootLabel . getTrace
-
-traceRootType :: Trace -> T.Text
-traceRootType = _nodeType . rootLabel . getTrace
+--traceRootId :: Trace -> NodeId
+--traceRootId = _nodeId . rootLabel . getTrace
+--
+--traceRootType :: Trace -> T.Text
+--traceRootType = _nodeType . rootLabel . getTrace
 
 instance JSON.ToJSON Trace where
     toJSON (Trace (Node attr children')) = 
@@ -54,3 +56,12 @@ data Parsed = Parsed
 
 
 $(makeLenses ''Parsed)
+
+data Difference = 
+      DifferentNumberOfChildren
+    | AttibuteDissapeared T.Text
+    | AttibuteChanged T.Text JSON.Value JSON.Value
+    deriving (Show, Eq, Generic) 
+
+instance JSON.ToJSON Difference
+

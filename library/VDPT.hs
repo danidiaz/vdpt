@@ -1,10 +1,10 @@
 module VDPT
     (
         module VDPT.Types
-    ,   numberTraceTree 
+    ,   numberNodeTree 
     ,   nodeMap
     ,   nodeParentsMap 
-    ,   traceTypeCounts 
+    ,   nodeTypeCounts 
     ,   directAncestorsByType 
     ) where
 
@@ -20,33 +20,31 @@ import Control.Comonad
 import Control.Lens
 import VDPT.Types
 
-numberTraceTree :: Tree (NodeId -> Attributes) -> Tree Attributes
-numberTraceTree = snd . flip TR.mapAccumL 0 (\i f -> (succ i, f i))
+numberNodeTree :: Tree (NodeId -> Attributes) -> Tree Attributes
+numberNodeTree = snd . flip TR.mapAccumL 0 (\i f -> (succ i, f i))
 
-nodeMap :: Trace -> IL.IntMap Trace 
+nodeMap :: Tree Attributes -> IL.IntMap (Tree Attributes)
 nodeMap
-    = F.foldMap (\n -> IL.singleton (_nodeId . extract $ n) (Trace n)) 
+    = F.foldMap (\n -> IL.singleton (_nodeId . extract $ n) n) 
     . duplicate
-    . getTrace
 
-nodeParentsMap :: Trace -> IL.IntMap [(Int,Trace)]
-nodeParentsMap (Trace t) = para go t
+nodeParentsMap :: Tree Attributes -> IL.IntMap [(Int,Tree Attributes)]
+nodeParentsMap t = para go t
   where
     go n submaps
         = IL.insert (_nodeId . extract $ n) [] 
         $ mconcat
-        $ fmap (\(i, ml) -> fmap ((:) (i, Trace n)) ml) 
+        $ fmap (\(i, ml) -> fmap ((:) (i,n)) ml) 
         $ zip [0..] submaps
 
-traceTypeCounts :: Trace -> M.Map T.Text Int 
-traceTypeCounts 
+nodeTypeCounts :: Tree Attributes -> M.Map T.Text Int 
+nodeTypeCounts 
     = M.unionsWith (+)
     . map (\n -> M.singleton (_nodeType n) 1)
     . F.toList
-    . getTrace
 
-directAncestorsByType :: Trace -> M.Map T.Text (S.Set T.Text)
-directAncestorsByType (Trace t) = para go t
+directAncestorsByType :: Tree Attributes -> M.Map T.Text (S.Set T.Text)
+directAncestorsByType t = para go t
   where
     go n = M.unionsWith (<>) . (:) (setsForNode n) 
     setsForNode x = 
@@ -54,3 +52,13 @@ directAncestorsByType (Trace t) = para go t
             cs = map (flip M.singleton p . _nodeType . extract) (children x)
         in
         M.unionsWith (<>) cs
+
+diff :: Tree Attributes -> Tree Attributes -> [(NodeId, NodeId, [Difference])]
+diff t1@(Node r1 c1) t2@(Node r2 c2) = undefined 
+  where
+    cDiff = undefined
+
+
+
+
+
