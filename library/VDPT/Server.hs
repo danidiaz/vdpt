@@ -12,6 +12,7 @@ import Data.Monoid
 import Data.IORef
 import qualified Data.Aeson as J
 import Data.Aeson.Encode.Pretty
+import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as I
@@ -160,6 +161,32 @@ traceUrl traceId = LT.toLazyText $ "/traces/" <> LT.decimal traceId
 nodeUrl :: TraceId -> NodeId -> LT.Text  
 nodeUrl traceId nodeId = LT.toLazyText $ "/traces/" <> LT.decimal traceId <> "/nodes/" <> LT.decimal nodeId
 
+renderDifferences :: TraceId -> TraceId -> [(NodeId, NodeId, [Difference])] -> Html () 
+renderDifferences tid1 tid2 diffs = 
+    ul_ $ do
+        F.forM_ diffs $ \(nid1,nid2,nodeDiffs)  -> do
+            let (nurl1,nurl2) = (nodeUrl tid1 nid1, nodeUrl tid2 nid2) 
+            li_ $ do 
+                div_ $ do
+                    a_ [href_ (LT.toStrict nurl1)] (toHtml . LT.toLazyText $ LT.decimal nid1)
+                    " "
+                    a_ [href_ (LT.toStrict nurl2)] (toHtml . LT.toLazyText $ LT.decimal nid2)
+                div_ $ 
+                    ul_ $ do
+                        F.forM_ nodeDiffs $ \d -> do
+                            li_ $ case d of 
+                                DifferentNumberOfChildren _ _ -> "Different number of children."
+                                DifferentNodeTypes t1 t2 -> toHtml $ "Different node types: " <> t1 <> " vs. " <> t2 
+                                AttributeDissapeared t -> toHtml $ "Attribute removed: " <> t
+                                AttributeChanged t j1 j2 -> do
+                                    div_ $ toHtml $ "Attribute changed: " <> t
+                                    div_ $ do
+                                        ul_ $ do
+                                            li_ $ do
+                                                pre_ $ toHtml . LT.toLazyText . encodePrettyToTextBuilder $ j1
+                                            li_ $ do
+                                                pre_ $ toHtml . LT.toLazyText . encodePrettyToTextBuilder $ j2
+        
 server :: Int -> IO ()
 server port = withSocketsDo $ do
     pages <- makePages 
@@ -189,7 +216,7 @@ server port = withSocketsDo $ do
                             uploadForm
                             textboxForm
                         div_ $ do
-                            T.forM pm $ \i -> do
+                            F.forM_ pm $ \i -> do
                                 a_ [href_ (LT.toStrict (relurl i))] (toHtml . show $ i)
                                 " "
         post "/traces" $ do
@@ -302,7 +329,27 @@ server port = withSocketsDo $ do
             case (,) <$> I.lookup traceId m <*> I.lookup traceId2 m of
                 Nothing -> liftIO . throwIO $ userError "trace does not exist"
                 Just (getTrace . _parsedTrace -> t1, getTrace . _parsedTrace -> t2) -> do
-                    jsonPretty $ nodeTreeDiff t1 t2 
+                    let theDiffs = nodeTreeDiff t1 t2 
+                    respf <- responseFormat JSONFormat
+                    case respf of 
+                        JSONFormat -> 
+                              jsonPretty  
+                            . over (mapped._1) (nodeUrl traceId) 
+                            . over (mapped._2) (nodeUrl traceId2) 
+                            $ theDiffs
+                        HTMLFormat -> html $ renderText $ do
+                            head_ (title_ "Differences")
+                            body_ $ do
+                               div_ $ do
+                                   let relurl = LT.toLazyText $ "/traces/" <> 
+                                                LT.decimal traceId <> "/differences/" <> LT.decimal traceId2 
+                                   a_ [href_ (LT.toStrict $ relurl <> "/?$format=json")] "json"
+                                   " (use "
+                                   a_ [href_ jsonViewURL] "JSON View" 
+                                   ")"
+                               div_ $ do 
+                                   renderDifferences traceId traceId2 theDiffs   
+                        _ -> liftIO $ throwIO $ userError "unsupported Accept value"
         get "/traces/:traceId/analyses" $ do
             traceId <- param "traceId"
             let url = traceUrl traceId
