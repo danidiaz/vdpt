@@ -28,11 +28,6 @@ $(makeLenses ''Attributes)
 
 newtype Trace = Trace { getTrace :: Tree Attributes } deriving (Show, Eq)
 
---traceRootId :: Trace -> NodeId
---traceRootId = _nodeId . rootLabel . getTrace
---
---traceRootType :: Trace -> T.Text
---traceRootType = _nodeType . rootLabel . getTrace
 
 instance JSON.ToJSON Trace where
     toJSON (Trace (Node attr children')) = 

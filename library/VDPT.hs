@@ -42,11 +42,15 @@ nodeParentsMap t = para go t
 
 nodeTreeDiff :: Tree Attributes -> Tree Attributes -> [(NodeId, NodeId, [Difference])]
 nodeTreeDiff t1@(Node r1 c1) t2@(Node r2 c2) =  
-  case childDiff ++ typeDiff ++ attrDiff of
-      ds@(_:_) -> [(_nodeId r1, _nodeId r2, ds)]  
-      [] -> mconcat $ zipWith nodeTreeDiff c1 c1
+  case childCountDiff ++ typeDiff of
+      ds@(_:_) -> mkDiffList ds
+      [] -> case attrDiff of
+          (_:_) -> mkDiffList attrDiff ++ subDiffs
+          [] -> subDiffs
   where
-    childDiff = 
+    mkDiffList ds = [(_nodeId r1, _nodeId r2, ds)]   
+    subDiffs = mconcat $ zipWith nodeTreeDiff c1 c2
+    childCountDiff = 
         let (l1,l2) = (length c1, length c2) in
         guard (l1 /= l2) *> [DifferentNumberOfChildren l1 l2]
     typeDiff = 
