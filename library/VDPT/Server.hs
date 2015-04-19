@@ -232,6 +232,7 @@ server port = withSocketsDo $ do
                                             " (use "
                                             a_ [href_ jsonViewURL] "JSON View" 
                                             ")"
+                                        div_ $ a_ [href_ $ LT.toStrict $ relurl <> "/analyses"] "analyses"
                         _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
         delete "/traces/:traceId" $ do
             traceId <- param "traceId"
@@ -293,3 +294,16 @@ server port = withSocketsDo $ do
                                                 " "
                                                 (toHtml pType)   
                             _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
+        get "/traces/:traceId/analyses" $ do
+            traceId <- param "traceId"
+            let url = traceUrl traceId
+            html $ renderText $ do
+                head_ (title_ "Available analyses")
+                body_ $ do
+                   div_ $ a_ [href_ $ LT.toStrict $ url <> "/analyses/nodecountsbytype"] "node counts by type"
+        get "/traces/:traceId/analyses/nodecountsbytype" $ do
+            traceId <- param "traceId"
+            (_,m) <- liftIO $ readIORef pages 
+            case I.lookup traceId m of
+                Nothing -> liftIO . throwIO $ userError "trace does not exist"
+                Just (traceTypeCounts . _parsedTrace -> t) -> jsonPretty t
