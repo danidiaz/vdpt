@@ -34,6 +34,7 @@ import Network.HTTP.Types.Status
 import Lucid
 import VDPT
 import VDPT.Parser
+import VDPT.Diagrams
 
 jsonViewURL :: T.Text
 jsonViewURL = "https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnpoihckbnefhakgolnmc?hl=en"
@@ -260,7 +261,12 @@ server port = withSocketsDo $ do
                                             " (use "
                                             a_ [href_ jsonViewURL] "JSON View" 
                                             ")"
+                                            " "
+                                            a_ [href_ (LT.toStrict $ relurl <> "?$format=svg")] "svg"
                                         div_ $ a_ [href_ $ LT.toStrict $ relurl <> "/analyses"] "analyses"
+                        SVGFormat -> do
+                           setHeader "Content-Type" "image/svg+xml"
+                           raw $ renderNodeTreeDia . getTrace . _parsedTrace $ t   
                         _ -> liftIO $ throwIO $ userError "unsupported Accept value" 
         delete "/traces/:traceId" $ do
             traceId <- param "traceId"
