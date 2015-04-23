@@ -38,6 +38,6 @@ renderNodeTreeDia = renderBS . renderDia SVG (SVGOptions (mkHeight (750::Double)
 renderNodeTree :: Tree a -> QDiagram SVG V2 Double Any
 --renderNodeTree nodeTree = renderTree (\_ -> circle 1 # fc white `atop` text "FOO") arrowBetween (symmLayout nodeTree)
 renderNodeTree nodeTree = renderTree 
-    (\_ -> text "FOO" # font "monospace" `atop` square 1 # fc white) 
+    (\_ -> text "FOO" # font "monospace" # fontSize (local 0.5) `atop` square 1 # fc white) 
     (~~) 
     (symmLayout' (with{ _slHSep = 3,  _slVSep = 3}) nodeTree)
