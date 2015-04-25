@@ -60,6 +60,6 @@ renderNodeTree nodeTree = renderTree
     (symmLayout' (with{ _slHSep = 3,  _slVSep = 2}) nodeTree)
   where
      letters a = text (T.unpack $ abbreviate a) # font "monospace" # fontSize (local 0.47) 
-     number a = text (show . _nodeId $ a) # font "monospace" # fontSize (local 0.5) 
+     number a = text (show . _nodeId $ a) # font "monospace" # fontSize (local 0.45) 
      letters2 a = position  [(p2 (0,0.25), letters a), (p2 (0,-0.25), number a)]  
      colorz = colorForNode nodeTree 
