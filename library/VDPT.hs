@@ -5,6 +5,7 @@ module VDPT
     ,   nodeMap
     ,   nodeParentsMap 
     ,   nodeTreeDiff
+    ,   nodeTypes
     ,   nodeTypeCounts 
     ,   directAncestorsByType 
     ) where
@@ -63,6 +64,9 @@ nodeTreeDiff t1@(Node r1 c1) t2@(Node r2 c2) =
                 Nothing -> [AttributeDissapeared attrKey] 
                 Just attrVal2 ->  
                     guard (attrVal /= attrVal2) *> [AttributeChanged attrKey attrVal attrVal2]
+
+nodeTypes :: Tree Attributes -> S.Set T.Text
+nodeTypes = F.foldMap (S.singleton . _nodeType)   
 
 nodeTypeCounts :: Tree Attributes -> M.Map T.Text Int 
 nodeTypeCounts 
