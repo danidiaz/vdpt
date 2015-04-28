@@ -9,6 +9,7 @@ import Data.Map.Strict
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Aeson as JSON
+import Data.Aeson.Types
 import Data.Aeson.Encode.Pretty
 import Control.Applicative
 import Control.Lens
@@ -49,15 +50,16 @@ data Parsed = Parsed
         ,   _parsedTrace :: Trace  
         } deriving (Show, Eq)
 
-
 $(makeLenses ''Parsed)
 
 data Difference = 
       DifferentNumberOfChildren Int Int
     | DifferentNodeTypes T.Text T.Text
-    | AttributeDissapeared T.Text
     | AttributeChanged T.Text JSON.Value JSON.Value
+    | AttributeDissapeared T.Text
     deriving (Show, Eq, Generic) 
 
-instance JSON.ToJSON Difference
+$(makePrisms ''Difference)
 
+instance JSON.ToJSON Difference where
+   toJSON = JSON.genericToJSON defaultOptions{ sumEncoding = ObjectWithSingleField }
